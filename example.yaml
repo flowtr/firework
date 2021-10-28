@@ -1,0 +1,29 @@
+vms:
+  - name: k3s
+    image: quay.io/theoparis/ignite-debian
+
+steps:
+  - name: Install packages
+    vm: k3s
+    notes: ""
+    cmd: |-
+      DEBIAN_FRONTEND=noninteractive apt update -y && apt upgrade -y
+      DEBIAN_FRONTEND=noninteractive apt install git curl -y
+      curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      curl -L -o /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      git clone https://github.com/ahmetb/kubectx /opt/kubectx
+      ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx
+      ln -s /opt/kubectx/kubens /usr/local/bin/kubens
+      chmod +x /usr/local/bin/kubectl && chmod +x /usr/local/bin/helm
+  - name: Setup k3s cluster
+    vm: k3s
+    notes: |-
+      No traefik or servicelb is deployed with the below commands
+      User needs to be a sudoer
+      some raspberri pis may need "cgroup_memory=1 cgroup_enable=memory" added to /boot/cmdline.txt or /boot/firmware/cmdline.txt for arm64 variants.
+    cmd: |-
+      # Setup kubernetes cluster
+      curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--no-deploy traefik,servicelb" sh -s -
+      ln -s /etc/rancher/k3s/k3s.yaml ~/kubeconfig
+      chown $USER $HOME/kubeconfig
+      echo 'export KUBECONFIG=$HOME/kubeconfig' >> ~/.bashrc && source ~/.bashrc
